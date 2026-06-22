@@ -1,0 +1,6 @@
+@AlumniManagementApi_HostAddress = http://localhost:5286
+
+GET {{AlumniManagementApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
