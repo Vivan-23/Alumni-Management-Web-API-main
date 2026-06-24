@@ -18,19 +18,19 @@ namespace AlumniManagementApi.Data
             {
             }
 
-            public DbSet<user> Users { get; set; }
-            public DbSet<alumniprofile> AlumniProfiles { get; set; }
+            public DbSet<User> Users { get; set; }
+            public DbSet<AlumniProfile> AlumniProfiles { get; set; }
 
-            public DbSet<jobposting> JobPostings { get; set; }
+            public DbSet<JobPosting> JobPostings { get; set; }
 
-            public DbSet<@event> Events { get; set; }
-            public DbSet<eventrsvp> EventRSVPs { get; set; }
+            public DbSet<@Event> Events { get; set; }
+            public DbSet<EventRSVP> EventRSVPs { get; set; }
 
-            public DbSet<donation> Donations { get; set; }
+            public DbSet<Donation> Donations { get; set; }
             public DbSet<DonationWebhookLog> DonationWebhookLogs { get; set; }
 
-            public DbSet<notification> Notifications { get; set; }
-            public DbSet<auditlog> AuditLogs { get; set; }
+            public DbSet<Notification> Notifications { get; set; }
+            public DbSet<AuditLog> AuditLogs { get; set; }
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)
             {
@@ -40,6 +40,10 @@ namespace AlumniManagementApi.Data
                 modelBuilder.Entity<DonationWebhookLog>()
                     .HasIndex(w => w.RazorpayEventId)
                     .IsUnique();
+                modelBuilder.Entity<AlumniProfile>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId);
             }
         }
     }

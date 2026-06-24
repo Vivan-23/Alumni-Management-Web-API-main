@@ -6,7 +6,7 @@
         Interested,
         Declined
     }
-    public class eventrsvp
+    public class EventRSVP
     {
         public Guid EventId { get; set; }
         public Guid UserId { get; set; }

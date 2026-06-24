@@ -1,6 +1,6 @@
 ﻿namespace AlumniManagementApi.Models
 {
-    public class donation
+    public class Donation
     {
         public int Id { get; set; }
         public Guid UserId { get; set; }

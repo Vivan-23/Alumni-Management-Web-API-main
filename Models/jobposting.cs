@@ -1,6 +1,6 @@
 ﻿namespace AlumniManagementApi.Models
 {
-    public class jobposting
+    public class JobPosting
     {
         public int Id { get; set; }
         public Guid UserId{ get; set; }

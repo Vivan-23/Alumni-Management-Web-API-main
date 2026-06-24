@@ -6,7 +6,7 @@
         EventReminder,
         DonationReceipt
     }
-    public class notification
+    public class Notification
     {
         public int Id { get; set; }
         public Guid UserId {  get; set; }
