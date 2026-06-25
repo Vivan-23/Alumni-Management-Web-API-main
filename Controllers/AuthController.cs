@@ -1,19 +1,40 @@
-﻿using AlumniManagementApi.Data;
-using AlumniManagementApi.Data.AlumniManagementApi.Data;
+using AlumniManagementApi.DTOs;
 using AlumniManagementApi.Services;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Mvc;
-using RouteAttribute = Microsoft.AspNetCore.Components.RouteAttribute;
 
 namespace AlumniManagementApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController
+    public class AuthController : ControllerBase
     {
-        private readonly ILogger<AuthController> _logger;
         private readonly IAuthService _authService;
-        private readonly IHttpContextAccessor _contextAccessor;
-        private readonly AppDbContext _context;
+
+        public AuthController(IAuthService authService)
+        {
+            _authService = authService;
+        }
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        {
+            var response = await _authService.RegisterAsync(request);
+            if (response == null)
+            {
+                return BadRequest(new { message = "User registration failed (email may already be registered or invalid role)." });
+            }
+            return Ok(response);
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            var response = await _authService.LoginAsync(request);
+            if (response == null)
+            {
+                return Unauthorized(new { message = "Invalid email or password." });
+            }
+            return Ok(response);
+        }
     }
 }

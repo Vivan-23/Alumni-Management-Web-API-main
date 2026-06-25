@@ -5,9 +5,9 @@
         public Guid Id { get; set; }
 
         // Nullable: a webhook can arrive for an order you don't recognize (replay, tampering, race condition)
-        public Guid? DonationId { get; set; }
+        public int? DonationId { get; set; } // Change from Guid? to int?
         public Donation? Donation { get; set; }
-
+            
         // Razorpay sends this — use it as your idempotency key (unique index)
         public string RazorpayEventId { get; set; } = string.Empty;
 

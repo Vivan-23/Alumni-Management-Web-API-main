@@ -1,4 +1,4 @@
-﻿namespace AlumniManagementApi.Models
+namespace AlumniManagementApi.Models
 {
     public enum Status
     {
@@ -8,8 +8,10 @@
     }
     public class EventRSVP
     {
-        public Guid EventId { get; set; }
+        public int EventId { get; set; }
+        public Event Event { get; set; }
         public Guid UserId { get; set; }
+        public User User { get; set; }
         public Status RsvpStatus { get; set; }
     }
 }
