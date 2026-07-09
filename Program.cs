@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using AlumniManagementApi.Data.AlumniManagementApi.Data;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using AlumniManagementApi.Filters;
+using AlumniManagementApi.DTOs;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +17,42 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
     ));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ApiResponseFilter>();
+})
+.ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(e => e.Value.Errors.Count > 0)
+            .ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+            );
+
+        var response = new ApiResponse<object>
+        {
+            Success = false,
+            StatusCode = StatusCodes.Status400BadRequest,
+            Message = "Validation failed.",
+            Errors = errors
+        };
+
+        return new BadRequestObjectResult(response);
+    };
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -60,8 +98,41 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.SecretKey ?? string.Empty))
         };
     });
+// Redis Configuration
+builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+    return StackExchange.Redis.ConnectionMultiplexer.Connect(connectionString);
+});
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    var configuration = builder.Configuration;
+    options.Configuration = configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+});
+
+// RabbitMQ Configuration
+builder.Services.AddSingleton<IRabbitMQPublisher, RabbitMQPublisher>();
+
+// Application Services Registration
+builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAlumniService, AlumniService>();
+builder.Services.AddScoped<IJobService, JobService>();
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IDonationService, DonationService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+
+// Hosted Background Services
+builder.Services.AddHostedService<JobPostedNotificationConsumer>();
+builder.Services.AddHostedService<DashboardCachingWorker>();
+
 var app = builder.Build();
+
+// Global Exception Handler Middleware
+app.UseMiddleware<AlumniManagementApi.Middleware.ExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -70,11 +141,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Alumni Management API V1");
-        c.RoutePrefix = string.Empty; // Serve the Swagger UI at the app's root
+        c.RoutePrefix = "swagger"; // Serve the Swagger UI at /swagger
     });
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 

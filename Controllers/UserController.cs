@@ -1,68 +1,73 @@
-using AlumniManagementApi.Data.AlumniManagementApi.Data;
 using AlumniManagementApi.DTOs;
+using AlumniManagementApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace AlumniManagementApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")] // Requires Admin role
+    [Route("api/users")]
+    [Authorize(Roles = "Admin")] // Requires Admin role for all actions
     public class UserController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IUserService _userService;
 
-        public UserController(AppDbContext context)
+        public UserController(IUserService userService)
         {
-            _context = context;
+            _userService = userService;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetUsers()
         {
-            var users = await _context.Users
-                .Include(u => u.Role)
-                .ToListAsync();
-
-            var userIds = users.Select(u => u.Id).ToList();
-
-            var profiles = await _context.AlumniProfiles
-                .Where(p => userIds.Contains(p.UserId))
-                .ToDictionaryAsync(p => p.UserId, p => p.Name);
-
-            var result = users.Select(u => new
-            {
-                u.Id,
-                u.Email,
-                Role = u.Role.RoleName,
-                RoleId = u.RoleId,
-                Name = profiles.ContainsKey(u.Id) ? profiles[u.Id] : string.Empty,
-                u.CreatedAt
-            });
-
-            return Ok(result);
+            var users = await _userService.GetUsersAsync();
+            return Ok(users);
         }
 
-        [HttpPut("{id}/role")]
-        public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateRoleRequest request)
+        [HttpGet("{email}")]
+        public async Task<IActionResult> GetUserByEmail(string email)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _userService.GetUserByEmailAsync(email);
             if (user == null)
             {
                 return NotFound(new { message = "User not found." });
             }
+            return Ok(user);
+        }
 
-            var role = await _context.Roles.FindAsync(request.RoleId);
-            if (role == null)
+        [HttpPut("{email}/role")]
+        public async Task<IActionResult> UpdateRole(string email, [FromBody] UpdateRoleRequest request)
+        {
+            var adminIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Guid? adminId = Guid.TryParse(adminIdString, out var parsedAdminId) ? parsedAdminId : null;
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            var success = await _userService.UpdateUserRoleAsync(email, request, adminId, ipAddress);
+            if (!success)
             {
-                return BadRequest(new { message = "Invalid role ID." });
+                return BadRequest(new { message = "User not found or invalid role ID." });
             }
 
-            user.RoleId = request.RoleId;
-            await _context.SaveChangesAsync();
+            return Ok(new { message = "User role updated successfully." });
+        }
 
-            return Ok(new { message = "User role updated successfully.", role = role.RoleName });
+        [HttpDelete("{email}")]
+        public async Task<IActionResult> DeleteUser(string email)
+        {
+            var adminIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Guid? adminId = Guid.TryParse(adminIdString, out var parsedAdminId) ? parsedAdminId : null;
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            var success = await _userService.DeleteUserAsync(email, adminId, ipAddress);
+            if (!success)
+            {
+                return NotFound(new { message = "User not found." });
+            }
+
+            return Ok(new { message = "User deleted successfully." });
         }
     }
 }

@@ -1,0 +1,2596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alumni Management API Dev Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b90;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --border: #334155;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Top Header Bar */
+        header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-section h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .auth-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .status-badge {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-badge.logged-out {
+            background-color: var(--error);
+        }
+
+        .status-badge.logged-in {
+            background-color: var(--success);
+        }
+
+        .token-display {
+            font-family: monospace;
+            background: rgba(30, 41, 59, 0.8);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        /* Banner for 401 Unauthorized */
+        #unauthorized-banner {
+            background-color: var(--error);
+            color: white;
+            text-align: center;
+            padding: 0.75rem;
+            font-weight: 600;
+            display: none;
+            position: relative;
+        }
+
+        #unauthorized-banner button {
+            background: none;
+            border: none;
+            color: white;
+            position: absolute;
+            right: 1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        /* Main Workspace Layout */
+        .workspace {
+            display: flex;
+            flex: 1;
+        }
+
+        /* Sidebar navigation */
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            padding-left: 0.75rem;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .nav-btn:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--text-primary);
+        }
+
+        .nav-btn.active {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            max-height: calc(100vh - 70px);
+        }
+
+        .panel {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .panel-header {
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .panel-header h2 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .panel-header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Grid for forms / actions inside domain sections */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        /* Test Action Card */
+        .action-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .action-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .endpoint-badge {
+            font-family: monospace;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .badge-get { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .badge-post { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .badge-put { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .badge-delete { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+        /* Form elements */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        input, select, textarea {
+            background-color: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.6rem;
+            border-radius: 4px;
+            font-family: var(--font-family);
+            font-size: 0.9rem;
+            outline: none;
+            width: 100%;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--accent);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        button.btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button.btn-primary {
+            background-color: var(--accent);
+            color: white;
+            flex: 2;
+        }
+
+        button.btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button.btn-secondary {
+            background-color: #475569;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        button.btn-secondary:hover {
+            background-color: #334155;
+        }
+
+        /* Result Display Area */
+        .result-box {
+            background-color: #090d16;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .result-box.visible {
+            display: block;
+        }
+
+        .result-header {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-status {
+            font-family: monospace;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+        }
+
+        .status-ok { background-color: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .status-error { background-color: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+        .result-body {
+            padding: 0.75rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            max-height: 250px;
+            white-space: pre-wrap;
+            color: #38bdf8;
+        }
+
+        /* Custom tables styling */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            background-color: rgba(15, 23, 42, 0.4);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            margin-top: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        th {
+            background-color: rgba(30, 41, 59, 0.8);
+            color: var(--text-primary);
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+            color: var(--text-secondary);
+        }
+
+        tr:hover td {
+            color: var(--text-primary);
+            background-color: rgba(255,255,255,0.02);
+        }
+
+        a.table-link {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a.table-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Job Cards styling */
+        .jobs-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .job-card {
+            background-color: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .job-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .job-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+
+        .job-badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .job-badge.active { background-color: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .job-badge.inactive { background-color: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+        .job-company {
+            font-size: 0.85rem;
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .job-detail {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .job-apply-btn {
+            margin-top: 0.5rem;
+            background-color: var(--accent);
+            color: white;
+            text-align: center;
+            padding: 0.4rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .job-apply-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Dashboard Stats Styling */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.8) 100%);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-top: 0.5rem;
+        }
+
+        .stat-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .chart-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .chart-section h3 {
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+        }
+
+        .chart-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        .chart-label {
+            width: 80px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .chart-bar-container {
+            flex-grow: 1;
+            background-color: rgba(15, 23, 42, 0.8);
+            border-radius: 4px;
+            height: 24px;
+            overflow: hidden;
+            margin: 0 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .chart-bar {
+            background: linear-gradient(90deg, var(--accent) 0%, #60a5fa 100%);
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease-in-out;
+            width: 0; /* Animated dynamically */
+        }
+
+        .chart-value {
+            width: 40px;
+            text-align: right;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Notification item styling */
+        .notification-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .notification-item {
+            background-color: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .notification-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .notification-message {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .notification-meta {
+            font-size: 0.75rem;
+            color: rgba(148, 163, 184, 0.7);
+        }
+
+        .read-badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .read-badge.unread { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .read-badge.read { background-color: rgba(71, 85, 105, 0.4); color: var(--text-secondary); }
+
+        .type-badge {
+            font-size: 0.65rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            background-color: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* Utility classes */
+        .text-center { text-align: center; }
+        .mt-1 { margin-top: 1rem; }
+    </style>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+
+    <!-- Unauthorized Alert Banner -->
+    <div id="unauthorized-banner">
+        <span>Token expired or unauthorized. Please check your credentials or log in again.</span>
+        <button onclick="dismissBanner()">✕</button>
+    </div>
+
+    <!-- Header bar -->
+    <header>
+        <div class="logo-section">
+            <h1>🛠️ Alumni API Dev Dashboard</h1>
+        </div>
+        <div class="auth-status-bar">
+            <span id="header-status-indicator" class="status-badge logged-out"></span>
+            <span id="header-status-text">Not logged in</span>
+            <span id="header-token-wrapper" style="display:none;">
+                | Token: <span id="header-token-display" class="token-display">None</span>
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Section -->
+    <div class="workspace">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-title">Dev Testing Sections</div>
+            <button class="nav-btn active" onclick="switchTab('auth')">🔐 Auth</button>
+            <button class="nav-btn" onclick="switchTab('alumni')">🎓 Alumni Profiles</button>
+            <button class="nav-btn" onclick="switchTab('jobs')">💼 Jobs</button>
+            <button class="nav-btn" onclick="switchTab('events')">📅 Events & RSVPs</button>
+            <button class="nav-btn" onclick="switchTab('donations')">💳 Donations</button>
+            <button class="nav-btn" onclick="switchTab('notifications')">🔔 Notifications</button>
+            <button class="nav-btn" onclick="switchTab('dashboard')">📈 Dashboard (Admin)</button>
+            <button class="nav-btn" onclick="switchTab('users')">👥 Users (Admin)</button>
+            
+            <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <button class="btn btn-secondary" style="width: 100%;" onclick="clearToken()">Clear Saved Token</button>
+            </div>
+        </nav>
+
+        <!-- Dynamic Content Panel -->
+        <main class="content">
+
+            <!-- ================= AUTH SECTION ================= -->
+            <section id="panel-auth" class="panel active">
+                <div class="panel-header">
+                    <h2>Authentication</h2>
+                    <p>Register new accounts or login to retrieve a JWT bearer token.</p>
+                </div>
+                <div class="card-grid">
+                    <!-- Register -->
+                    <div class="action-card">
+                        <h3>Register User <span class="endpoint-badge badge-post">POST /api/auth/register</span></h3>
+                        <form id="form-register" onsubmit="handleRegister(event)">
+                            <div class="form-group">
+                                <label for="reg-name">Name</label>
+                                <input type="text" id="reg-name" required placeholder="e.g. John Doe">
+                            </div>
+                            <div class="form-group">
+                                <label for="reg-email">Email</label>
+                                <input type="email" id="reg-email" required placeholder="e.g. john@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="reg-password">Password</label>
+                                <input type="password" id="reg-password" required placeholder="••••••••">
+                            </div>
+                            <div class="form-group">
+                                <label for="reg-role">Role (Requested)</label>
+                                <select id="reg-role">
+                                    <option value="2">Alumni (Role ID: 2)</option>
+                                    <option value="1">Admin (Role ID: 1)</option>
+                                </select>
+                                <small style="color: var(--text-secondary); font-size: 0.75rem;">
+                                    Note: Backend defaults registrations to Student (ID: 3) as per system policy.
+                                </small>
+                            </div>
+                            <div class="button-group">
+                                <button type="submit" class="btn btn-primary">Register</button>
+                                <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                            </div>
+                        </form>
+                        <div class="result-box">
+                            <div class="result-header">
+                                <span>Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Login -->
+                    <div class="action-card">
+                        <h3>Login <span class="endpoint-badge badge-post">POST /api/auth/login</span></h3>
+                        <form id="form-login" onsubmit="handleLogin(event)">
+                            <div class="form-group">
+                                <label for="login-email">Email</label>
+                                <input type="email" id="login-email" required placeholder="john@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="login-password">Password</label>
+                                <input type="password" id="login-password" required placeholder="••••••••">
+                            </div>
+                            <div class="button-group">
+                                <button type="submit" class="btn btn-primary">Login</button>
+                                <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                            </div>
+                        </form>
+                        <div class="result-box">
+                            <div class="result-header">
+                                <span>Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= ALUMNI SECTION ================= -->
+            <section id="panel-alumni" class="panel">
+                <div class="panel-header">
+                    <h2>Alumni Profiles</h2>
+                    <p>Manage and query alumni profile data.</p>
+                </div>
+                <div class="card-grid" style="grid-template-columns: 1fr;">
+                    
+                    <!-- Get All Alumni -->
+                    <div class="action-card">
+                        <h3>Get All Alumni <span class="endpoint-badge badge-get">GET /api/alumni</span></h3>
+                        <form id="form-get-alumni" onsubmit="handleGetAlumni(event)">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="alumni-page">Page</label>
+                                    <input type="number" id="alumni-page" value="1" min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label for="alumni-size">Page Size</label>
+                                    <input type="number" id="alumni-size" value="10" min="1">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="alumni-batch">Batch Year (Optional)</label>
+                                    <input type="number" id="alumni-batch" placeholder="e.g. 2024">
+                                </div>
+                                <div class="form-group">
+                                    <label for="alumni-location">Location (Optional)</label>
+                                    <input type="text" id="alumni-location" placeholder="e.g. Mumbai">
+                                </div>
+                                <div class="form-group">
+                                    <label for="alumni-company">Company (Optional)</label>
+                                    <input type="text" id="alumni-company" placeholder="e.g. Google">
+                                </div>
+                            </div>
+                            <div class="button-group">
+                                <button type="submit" class="btn btn-primary">Retrieve Alumni</button>
+                                <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                            </div>
+                        </form>
+
+                        <div class="table-responsive" id="alumni-table-wrapper" style="display:none;">
+                            <table id="alumni-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Batch Year</th>
+                                        <th>Degree</th>
+                                        <th>Company</th>
+                                        <th>Role</th>
+                                        <th>Location</th>
+                                        <th>LinkedIn</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+
+                        <div class="result-box">
+                            <div class="result-header">
+                                <span>Raw Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Get Alumni by ID & Search -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                        <div class="action-card">
+                            <h3>Get Alumni by ID <span class="endpoint-badge badge-get">GET /api/alumni/{id}</span></h3>
+                            <form id="form-get-alumni-id" onsubmit="handleGetAlumniById(event)">
+                                <div class="form-group">
+                                    <label for="alumni-id">Alumni User ID (GUID)</label>
+                                    <input type="text" id="alumni-id" required placeholder="User Guid">
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Get Profile</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                        <div class="action-card">
+                            <h3>Search Alumni <span class="endpoint-badge badge-get">GET /api/alumni/search</span></h3>
+                            <form id="form-search-alumni" onsubmit="handleSearchAlumni(event)">
+                                <div class="form-group">
+                                    <label for="alumni-query">Search Term (q)</label>
+                                    <input type="text" id="alumni-query" required placeholder="e.g. John, Software, Mumbai...">
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Search</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            
+                            <div class="table-responsive" id="search-table-wrapper" style="display:none; margin-top: 1rem;">
+                                <table id="search-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Batch Year</th>
+                                            <th>Degree</th>
+                                            <th>Company</th>
+                                            <th>Location</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Raw Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Update Alumni Profile -->
+                    <div class="action-card">
+                        <h3>Update My Profile <span class="endpoint-badge badge-put">PUT /api/alumni/{id}</span></h3>
+                        <form id="form-update-profile" onsubmit="handleUpdateProfile(event)">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="up-id">Profile User ID (GUID)</label>
+                                    <input type="text" id="up-id" required placeholder="User Guid">
+                                </div>
+                                <div class="form-group">
+                                    <label for="up-name">Name</label>
+                                    <input type="text" id="up-name" required placeholder="Name">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="up-email">Email</label>
+                                    <input type="email" id="up-email" required placeholder="Email">
+                                </div>
+                                <div class="form-group">
+                                    <label for="up-phone">Phone Number</label>
+                                    <input type="text" id="up-phone" placeholder="Phone Number">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="up-batch">Batch Year</label>
+                                    <input type="number" id="up-batch" required placeholder="Batch Year">
+                                </div>
+                                <div class="form-group">
+                                    <label for="up-degree">Degree</label>
+                                    <input type="text" id="up-degree" required placeholder="Degree (e.g. B.Tech CS)">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="up-company">Current Company</label>
+                                    <input type="text" id="up-company" placeholder="Current Company">
+                                </div>
+                                <div class="form-group">
+                                    <label for="up-role">Current Role</label>
+                                    <input type="text" id="up-role" placeholder="Current Role">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="up-location">Location</label>
+                                    <input type="text" id="up-location" placeholder="Location">
+                                </div>
+                                <div class="form-group">
+                                    <label for="up-linkedin">LinkedIn URL</label>
+                                    <input type="url" id="up-linkedin" placeholder="LinkedIn URL">
+                                </div>
+                            </div>
+                            <div class="button-group">
+                                <button type="submit" class="btn btn-primary">Update Profile</button>
+                                <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                            </div>
+                        </form>
+                        <div class="result-box">
+                            <div class="result-header">
+                                <span>Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ================= JOBS SECTION ================= -->
+            <section id="panel-jobs" class="panel">
+                <div class="panel-header">
+                    <h2>Jobs Section</h2>
+                    <p>Manage job postings. Write actions require an Admin token.</p>
+                </div>
+                <div class="card-grid" style="grid-template-columns: 1fr;">
+                    
+                    <!-- Get Active Jobs -->
+                    <div class="action-card">
+                        <h3>Get Active Jobs <span class="endpoint-badge badge-get">GET /api/jobs</span></h3>
+                        <div class="button-group">
+                            <button type="button" class="btn btn-primary" onclick="handleGetJobs()">Retrieve Active Jobs</button>
+                            <button type="button" class="btn btn-secondary" onclick="clearJobsCard(this)">Clear</button>
+                        </div>
+                        
+                        <div class="jobs-container" id="jobs-cards-container"></div>
+
+                        <div class="result-box" id="jobs-get-result-box">
+                            <div class="result-header">
+                                <span>Raw Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Get / Create / Update / Delete in Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                        <!-- Get Job by ID -->
+                        <div class="action-card">
+                            <h3>Get Job by ID <span class="endpoint-badge badge-get">GET /api/jobs/{id}</span></h3>
+                            <form id="form-get-job-id" onsubmit="handleGetJobById(event)">
+                                <div class="form-group">
+                                    <label for="job-id">Job ID (Int)</label>
+                                    <input type="number" id="job-id" required placeholder="Job ID">
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Retrieve Job</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                        <!-- Delete Job -->
+                        <div class="action-card">
+                            <h3>Delete Job (Admin only) <span class="endpoint-badge badge-delete">DELETE /api/jobs/{id}</span></h3>
+                            <form id="form-delete-job" onsubmit="handleDeleteJob(event)">
+                                <div class="form-group">
+                                    <label for="delete-job-id">Job ID (Int)</label>
+                                    <input type="number" id="delete-job-id" required placeholder="Job ID">
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary" style="background-color: var(--error);">Delete Job</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                        <!-- Create Job -->
+                        <div class="action-card">
+                            <h3>Create Job Posting (Admin & Alumni) <span class="endpoint-badge badge-post">POST /api/jobs</span></h3>
+                            <form id="form-create-job" onsubmit="handleCreateJob(event)">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="job-title">Job Title</label>
+                                        <input type="text" id="job-title" required placeholder="e.g. Senior Software Engineer">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="job-company-name">Company Name</label>
+                                        <input type="text" id="job-company-name" required placeholder="e.g. Google">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="job-location">Location</label>
+                                        <input type="text" id="job-location" required placeholder="e.g. Bangalore">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="job-deadline">Application Deadline</label>
+                                        <input type="date" id="job-deadline" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="job-apply-url">Apply URL</label>
+                                    <input type="url" id="job-apply-url" required placeholder="https://careers.google.com/jobs/...">
+                                </div>
+                                <div class="form-group">
+                                    <label for="job-desc">Job Description</label>
+                                    <textarea id="job-desc" required placeholder="Enter role requirements, description..."></textarea>
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Create Job</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                        <!-- Update Job -->
+                        <div class="action-card">
+                            <h3>Update Job Posting (Admin only) <span class="endpoint-badge badge-put">PUT /api/jobs/{id}</span></h3>
+                            <form id="form-update-job" onsubmit="handleUpdateJob(event)">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="upjob-id">Job ID (Int)</label>
+                                        <input type="number" id="upjob-id" required placeholder="Job ID to Update">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="upjob-title">Job Title</label>
+                                        <input type="text" id="upjob-title" required placeholder="Job Title">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="upjob-company">Company Name</label>
+                                        <input type="text" id="upjob-company" required placeholder="Company Name">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="upjob-location">Location</label>
+                                        <input type="text" id="upjob-location" required placeholder="Location">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="upjob-deadline">Application Deadline</label>
+                                        <input type="date" id="upjob-deadline" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="upjob-url">Apply URL</label>
+                                        <input type="url" id="upjob-url" required placeholder="Apply URL">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="upjob-desc">Job Description</label>
+                                    <textarea id="upjob-desc" required placeholder="Job Description"></textarea>
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Update Job</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ================= EVENTS SECTION ================= -->
+            <section id="panel-events" class="panel">
+                <div class="panel-header">
+                    <h2>Events & RSVPs</h2>
+                    <p>Browse events, manage RSVPs, or perform admin operations on events.</p>
+                </div>
+                <div class="card-grid" style="grid-template-columns: 1fr;">
+                    
+                    <!-- Get All Events -->
+                    <div class="action-card">
+                        <h3>Get All Events <span class="endpoint-badge badge-get">GET /api/events</span></h3>
+                        <div class="button-group">
+                            <button type="button" class="btn btn-primary" onclick="handleGetEvents()">Retrieve All Events</button>
+                            <button type="button" class="btn btn-secondary" onclick="clearEventsCard(this)">Clear</button>
+                        </div>
+                        
+                        <div class="table-responsive" id="events-table-wrapper" style="display:none;">
+                            <table id="events-table">
+                                <thead>
+                                    <tr>
+                                        <th>Event ID</th>
+                                        <th>Event Name</th>
+                                        <th>Description</th>
+                                        <th>Event Date</th>
+                                        <th>Location</th>
+                                        <th>Organizer ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+
+                        <div class="result-box" id="events-get-result-box">
+                            <div class="result-header">
+                                <span>Raw Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Get Event by ID, Delete and RSVPs -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+                        
+                        <div class="action-card">
+                            <h3>Get Event by ID <span class="endpoint-badge badge-get">GET /api/events/{id}</span></h3>
+                            <form id="form-get-event-id" onsubmit="handleGetEventById(event)">
+                                <div class="form-group">
+                                    <label for="event-id">Event ID (Int)</label>
+                                    <input type="number" id="event-id" required placeholder="Event ID">
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Get Event</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                        <div class="action-card">
+                            <h3>Delete Event (Admin only) <span class="endpoint-badge badge-delete">DELETE /api/events/{id}</span></h3>
+                            <form id="form-delete-event" onsubmit="handleDeleteEvent(event)">
+                                <div class="form-group">
+                                    <label for="delete-event-id">Event ID (Int)</label>
+                                    <input type="number" id="delete-event-id" required placeholder="Event ID">
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary" style="background-color: var(--error);">Delete</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                        <!-- RSVP and Get Status -->
+                        <div class="action-card">
+                            <h3>RSVP Status Management</h3>
+                            <form id="form-rsvp-event" onsubmit="handleRsvpEvent(event)">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="rsvp-event-id">Event ID</label>
+                                        <input type="number" id="rsvp-event-id" required placeholder="Event ID">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="rsvp-status">Status</label>
+                                        <select id="rsvp-status">
+                                            <option value="Going">Going</option>
+                                            <option value="Interested">Interested</option>
+                                            <option value="Declined">Declined</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Submit RSVP</button>
+                                    <button type="button" class="btn btn-secondary" onclick="handleGetRsvpStatus(event)">Get My RSVP</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Create and Update Events -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                        
+                        <!-- Create Event -->
+                        <div class="action-card">
+                            <h3>Create Event (Admin only) <span class="endpoint-badge badge-post">POST /api/events</span></h3>
+                            <form id="form-create-event" onsubmit="handleCreateEvent(event)">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="event-name">Event Name</label>
+                                        <input type="text" id="event-name" required placeholder="Event Name">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="event-date">Event Date & Time</label>
+                                        <input type="datetime-local" id="event-date" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="event-location">Location</label>
+                                    <input type="text" id="event-location" required placeholder="e.g. Main Auditorium / Zoom">
+                                </div>
+                                <div class="form-group">
+                                    <label for="event-desc">Description</label>
+                                    <textarea id="event-desc" required placeholder="Event agenda, requirements..."></textarea>
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Create Event</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                        <!-- Update Event -->
+                        <div class="action-card">
+                            <h3>Update Event (Admin only) <span class="endpoint-badge badge-put">PUT /api/events/{id}</span></h3>
+                            <form id="form-update-event" onsubmit="handleUpdateEvent(event)">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="upevent-id">Event ID (Int)</label>
+                                        <input type="number" id="upevent-id" required placeholder="Event ID">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="upevent-name">Event Name</label>
+                                        <input type="text" id="upevent-name" required placeholder="Event Name">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="upevent-date">Event Date & Time</label>
+                                        <input type="datetime-local" id="upevent-date" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="upevent-location">Location</label>
+                                        <input type="text" id="upevent-location" required placeholder="Location">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="upevent-desc">Description</label>
+                                    <textarea id="upevent-desc" required placeholder="Description"></textarea>
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Update Event</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ================= DONATIONS SECTION ================= -->
+            <section id="panel-donations" class="panel">
+                <div class="panel-header">
+                    <h2>Donation Management</h2>
+                    <p>Simulate donation order creations and view histories.</p>
+                </div>
+                <div class="card-grid">
+                    
+                    <!-- Create Order -->
+                    <div class="action-card">
+                        <h3>Create Razorpay Order <span class="endpoint-badge badge-post">POST /api/donations/create-order</span></h3>
+                        <form id="form-create-order" onsubmit="handleCreateOrder(event)">
+                            <div class="form-group">
+                                <label for="donate-amount">Amount (INR)</label>
+                                <input type="number" id="donate-amount" min="1" step="0.01" required placeholder="e.g. 500">
+                            </div>
+                            <div class="button-group">
+                                <button type="submit" class="btn btn-primary">Create Order</button>
+                                <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                            </div>
+                        </form>
+                        <div class="result-box">
+                            <div class="result-header">
+                                <span>Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Razorpay Quick Payment Button -->
+                    <div class="action-card">
+                        <h3>Razorpay Quick Payment Button <span class="endpoint-badge badge-post">Razorpay Hosted</span></h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                            This uses a pre-configured Razorpay payment button which handles the checkout process automatically without requiring backend order creation first.
+                        </p>
+                        <div style="display: flex; justify-content: center; margin-top: 1rem; padding: 1rem; background: rgba(15, 23, 42, 0.4); border-radius: 4px;">
+                            <form>
+                                <script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_T9Rmuv6EtpPdh2" async> </script>
+                            </form>
+                        </div>
+                    </div>
+
+
+
+                    <!-- History -->
+                    <div class="action-card" style="grid-column: 1 / -1;">
+                        <h3>My Donation History <span class="endpoint-badge badge-get">GET /api/donations/my</span></h3>
+                        <div class="button-group">
+                            <button type="button" class="btn btn-primary" onclick="handleGetDonationHistory()">Retrieve History</button>
+                            <button type="button" class="btn btn-secondary" onclick="clearDonationHistoryCard(this)">Clear</button>
+                        </div>
+
+                        <div class="table-responsive" id="donations-table-wrapper" style="display:none;">
+                            <table id="donations-table">
+                                <thead>
+                                    <tr>
+                                        <th>Donation ID</th>
+                                        <th>Amount</th>
+                                        <th>Donation Date</th>
+                                        <th>Razorpay Order ID</th>
+                                        <th>Razorpay Payment ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+
+                        <div class="result-box" id="donations-get-result-box">
+                            <div class="result-header">
+                                <span>Raw Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ================= NOTIFICATIONS SECTION ================= -->
+            <section id="panel-notifications" class="panel">
+                <div class="panel-header">
+                    <h2>Notifications</h2>
+                    <p>Read your event reminders and job alert notifications.</p>
+                </div>
+                <div class="card-grid">
+                    
+                    <!-- Notification actions & lists -->
+                    <div class="action-card" style="grid-column: 1 / -1;">
+                        <h3>My Notification Feed <span class="endpoint-badge badge-get">GET /api/notifications</span></h3>
+                        <div class="button-group" style="margin-bottom: 1rem;">
+                            <button type="button" class="btn btn-primary" onclick="handleGetNotifications()">Retrieve Feed</button>
+                            <button type="button" class="btn btn-secondary" onclick="handleMarkAllRead()">Mark All Read</button>
+                            <button type="button" class="btn btn-secondary" onclick="clearNotificationsCard(this)">Clear</button>
+                        </div>
+
+                        <!-- Mark single notification -->
+                        <div style="display: flex; gap: 0.5rem; max-width: 400px; margin-bottom: 1rem; align-items: flex-end;">
+                            <div class="form-group" style="flex:1;">
+                                <label for="read-notification-id">Notification ID to Mark Read</label>
+                                <input type="number" id="read-notification-id" placeholder="Notification ID">
+                            </div>
+                            <button class="btn btn-primary" style="height: 38px;" onclick="handleMarkSingleRead()">Mark Read</button>
+                        </div>
+
+                        <div class="notification-list" id="notification-items-container"></div>
+
+                        <div class="result-box" id="notifications-get-result-box">
+                            <div class="result-header">
+                                <span>Raw Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ================= DASHBOARD SECTION ================= -->
+            <section id="panel-dashboard" class="panel">
+                <div class="panel-header">
+                    <h2>Admin Analytics Dashboard</h2>
+                    <p>View application summary metrics. Requires an Admin token.</p>
+                </div>
+
+                <div class="button-group" style="margin-bottom: 1.5rem;">
+                    <button class="btn btn-primary" onclick="handleGetDashboardStats()">Retrieve / Refresh Dashboard</button>
+                    <button class="btn btn-secondary" onclick="clearDashboard()">Clear</button>
+                </div>
+
+                <!-- Stats Visual Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-title">Total Alumni Count</div>
+                        <div class="stat-value" id="stat-alumni-count">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Total Donations Amount</div>
+                        <div class="stat-value" id="stat-donation-amount">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Active Job Postings</div>
+                        <div class="stat-value" id="stat-job-count">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Upcoming Events</div>
+                        <div class="stat-value" id="stat-event-count">-</div>
+                    </div>
+                </div>
+
+                <!-- Simple Bar Chart -->
+                <div class="chart-section" id="chart-section-wrapper" style="display:none; margin-bottom: 1.5rem;">
+                    <h3>Alumni Count by Batch Year</h3>
+                    <div id="batch-year-chart-container">
+                        <!-- Chart rows rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Raw Response Display -->
+                <div class="action-card">
+                    <h3>Raw Dashboard Response <span class="endpoint-badge badge-get">GET /api/dashboard/stats</span></h3>
+                    <div class="result-box" id="dashboard-result-box">
+                        <div class="result-header">
+                            <span>Response</span>
+                            <span class="result-status"></span>
+                        </div>
+                        <pre class="result-body"></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= USERS SECTION ================= -->
+            <section id="panel-users" class="panel">
+                <div class="panel-header">
+                    <h2>User Accounts Management (Admin)</h2>
+                    <p>Audit registrations, update system roles, and delete user database profiles. Requires Admin token.</p>
+                </div>
+                <div class="card-grid" style="grid-template-columns: 1fr;">
+                    
+                    <!-- Get All Users -->
+                    <div class="action-card">
+                        <h3>Get All Users <span class="endpoint-badge badge-get">GET /api/users</span></h3>
+                        <div class="button-group">
+                            <button type="button" class="btn btn-primary" onclick="handleGetUsers()">Retrieve All Users</button>
+                            <button type="button" class="btn btn-secondary" onclick="clearUsersCard(this)">Clear</button>
+                        </div>
+
+                        <div class="table-responsive" id="users-table-wrapper" style="display:none;">
+                            <table id="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>User ID (GUID)</th>
+                                        <th>Email</th>
+                                        <th>Role (ID / Name)</th>
+                                        <th>Name (Profile)</th>
+                                        <th>Created At</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+
+                        <div class="result-box" id="users-get-result-box">
+                            <div class="result-header">
+                                <span>Raw Response</span>
+                                <span class="result-status"></span>
+                            </div>
+                            <pre class="result-body"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Get User By Email, Update Role, Delete User in Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+                        
+                        <!-- Get User by Email -->
+                        <div class="action-card">
+                            <h3>Get User by Email <span class="endpoint-badge badge-get">GET /api/users/{email}</span></h3>
+                            <form id="form-get-user-email" onsubmit="handleGetUserByEmail(event)">
+                                <div class="form-group">
+                                    <label for="user-email">User Email</label>
+                                    <input type="text" id="user-email" required placeholder="john@example.com">
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Retrieve User</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                        <!-- Update Role -->
+                        <div class="action-card">
+                            <h3>Update User Role <span class="endpoint-badge badge-put">PUT /api/users/{email}/role</span></h3>
+                            <form id="form-update-role" onsubmit="handleUpdateRole(event)">
+                                <div class="form-group">
+                                    <label for="role-user-email">User Email</label>
+                                    <input type="text" id="role-user-email" required placeholder="john@example.com">
+                                </div>
+                                <div class="form-group">
+                                    <label for="role-dropdown">New Role</label>
+                                    <select id="role-dropdown">
+                                        <option value="1">Admin (Role ID: 1)</option>
+                                        <option value="2">Alumni (Role ID: 2)</option>
+                                        <option value="3">Student (Role ID: 3)</option>
+                                    </select>
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary">Update Role</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                        <!-- Delete User -->
+                        <div class="action-card">
+                            <h3>Delete User <span class="endpoint-badge badge-delete">DELETE /api/users/{email}</span></h3>
+                            <form id="form-delete-user" onsubmit="handleDeleteUser(event)">
+                                <div class="form-group">
+                                    <label for="delete-user-email">User Email</label>
+                                    <input type="text" id="delete-user-email" required placeholder="john@example.com">
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary" style="background-color: var(--error);">Delete Account</button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearCard(this)">Clear</button>
+                                </div>
+                            </form>
+                            <div class="result-box">
+                                <div class="result-header">
+                                    <span>Response</span>
+                                    <span class="result-status"></span>
+                                </div>
+                                <pre class="result-body"></pre>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // API Configurations
+        const API_BASE_URL = window.location.origin + '/api';
+
+        // Local Storage for token
+        let jwtToken = localStorage.getItem('jwt_token') || '';
+        let currentUserEmail = '';
+        let currentUserRole = '';
+        let currentUserId = '';
+
+        // Initial setup on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            if (jwtToken) {
+                processToken(jwtToken);
+            } else {
+                updateHeaderUI(false);
+            }
+        });
+
+        // Switch panels in the developer tool layout
+        function switchTab(tabName) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+
+            const eventBtn = [...document.querySelectorAll('.nav-btn')].find(btn => btn.textContent.toLowerCase().includes(tabName));
+            if (eventBtn) eventBtn.classList.add('active');
+
+            const targetPanel = document.getElementById(`panel-${tabName}`);
+            if (targetPanel) targetPanel.classList.add('active');
+        }
+
+        // Helper: Base64 URL Decode
+        function decodeJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error("JWT Decode error", e);
+                return null;
+            }
+        }
+
+        // Process token, extract fields and save state
+        function processToken(token) {
+            jwtToken = token;
+            localStorage.setItem('jwt_token', token);
+            
+            const payload = decodeJwt(token);
+            if (payload) {
+                currentUserEmail = payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || payload["email"] || "unknown";
+                currentUserRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload["role"] || "unknown";
+                currentUserId = payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || payload["nameid"] || "";
+                
+                // Prefill Profile updates
+                const upId = document.getElementById('up-id');
+                if (upId) upId.value = currentUserId;
+
+                updateHeaderUI(true);
+            } else {
+                clearToken();
+            }
+        }
+
+        // Clear JWT token
+        function clearToken() {
+            jwtToken = '';
+            currentUserEmail = '';
+            currentUserRole = '';
+            currentUserId = '';
+            localStorage.removeItem('jwt_token');
+            updateHeaderUI(false);
+        }
+
+        // Refresh Header status
+        function updateHeaderUI(isLoggedIn) {
+            const indicator = document.getElementById('header-status-indicator');
+            const statusText = document.getElementById('header-status-text');
+            const tokenWrapper = document.getElementById('header-token-wrapper');
+            const tokenDisplay = document.getElementById('header-token-display');
+
+            if (isLoggedIn) {
+                indicator.className = "status-badge logged-in";
+                statusText.innerHTML = `Logged in: <strong>${currentUserEmail}</strong> (Role: <span style="color:var(--accent); font-weight:600;">${currentUserRole}</span>)`;
+                tokenWrapper.style.display = "inline";
+                tokenDisplay.textContent = jwtToken;
+            } else {
+                indicator.className = "status-badge logged-out";
+                statusText.textContent = "Not logged in";
+                tokenWrapper.style.display = "none";
+                tokenDisplay.textContent = "None";
+            }
+        }
+
+        // Dismiss warning banner
+        function dismissBanner() {
+            document.getElementById('unauthorized-banner').style.display = 'none';
+        }
+
+        // Universal Fetch helper with Authorization token attached automatically
+        async function apiCall(endpoint, options = {}) {
+            // Dismiss banner initially
+            document.getElementById('unauthorized-banner').style.display = 'none';
+
+            const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+            
+            // Set Headers
+            options.headers = options.headers || {};
+            if (jwtToken) {
+                options.headers['Authorization'] = `Bearer ${jwtToken}`;
+            }
+
+            try {
+                const response = await fetch(url, options);
+                
+                if (response.status === 401) {
+                    document.getElementById('unauthorized-banner').style.display = 'block';
+                }
+
+                const text = await response.text();
+                let rawBody = {};
+                try {
+                    rawBody = text ? JSON.parse(text) : {};
+                } catch {
+                    rawBody = { message: text };
+                }
+
+                // Unwrap body if it's formatted in the API response format
+                let body = rawBody;
+                if (rawBody && typeof rawBody === 'object' && rawBody.hasOwnProperty('success') && rawBody.hasOwnProperty('data')) {
+                    if (rawBody.success) {
+                        body = rawBody.data;
+                    } else {
+                        body = rawBody.errors || rawBody;
+                    }
+                }
+
+                return {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok,
+                    body: body,
+                    rawBody: rawBody
+                };
+            } catch (err) {
+                console.error("Fetch Exception", err);
+                return {
+                    status: 500,
+                    statusText: 'Network Error',
+                    ok: false,
+                    body: { error: err.message || 'Network connection failed' },
+                    rawBody: { error: err.message || 'Network connection failed' }
+                };
+            }
+        }
+
+        // Display results in a designated card's result box
+        function displayResult(cardElement, responseObj) {
+            const resultBox = cardElement.querySelector('.result-box');
+            if (!resultBox) return;
+
+            const statusSpan = resultBox.querySelector('.result-status');
+            const bodyCode = resultBox.querySelector('.result-body');
+
+            resultBox.classList.add('visible');
+            statusSpan.textContent = `${responseObj.status} ${responseObj.statusText}`;
+            
+            if (responseObj.ok) {
+                statusSpan.className = "result-status status-ok";
+            } else {
+                statusSpan.className = "result-status status-error";
+            }
+
+            bodyCode.textContent = JSON.stringify(responseObj.rawBody || responseObj.body, null, 2);
+        }
+
+        // Standard card form reset and response box clear
+        function clearCard(button) {
+            const card = button.closest('.action-card');
+            const form = card.querySelector('form');
+            if (form) form.reset();
+
+            // Retain own ID if relevant in profiles
+            const upId = card.querySelector('#up-id');
+            if (upId && currentUserId) upId.value = currentUserId;
+
+            const resultBox = card.querySelector('.result-box');
+            if (resultBox) {
+                resultBox.classList.remove('visible');
+                const bodyCode = resultBox.querySelector('.result-body');
+                if (bodyCode) bodyCode.textContent = '';
+            }
+        }
+
+
+        // ================= AUTH OPERATIONS =================
+        async function handleRegister(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+
+            // Note: roleId dropdown is read but not sent to backend if not requested in body.
+            // RegisterRequest expects Email, Password, Name. We send that exactly.
+            const payload = {
+                Email: email,
+                Password: password,
+                Name: name
+            };
+
+            const response = await apiCall('/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            displayResult(card, response);
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            const payload = {
+                Email: email,
+                Password: password
+            };
+
+            const response = await apiCall('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok && response.body.token) {
+                processToken(response.body.token);
+            }
+
+            displayResult(card, response);
+        }
+
+
+        // ================= ALUMNI OPERATIONS =================
+        async function handleGetAlumni(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+
+            const page = document.getElementById('alumni-page').value;
+            const size = document.getElementById('alumni-size').value;
+            const batch = document.getElementById('alumni-batch').value;
+            const location = document.getElementById('alumni-location').value;
+            const company = document.getElementById('alumni-company').value;
+
+            let queryParams = `?page=${page}&pageSize=${size}`;
+            if (batch) queryParams += `&batchYear=${batch}`;
+            if (location) queryParams += `&location=${encodeURIComponent(location)}`;
+            if (company) queryParams += `&company=${encodeURIComponent(company)}`;
+
+            const response = await apiCall(`/alumni${queryParams}`);
+            
+            const wrapper = document.getElementById('alumni-table-wrapper');
+            const tbody = document.querySelector('#alumni-table tbody');
+            tbody.innerHTML = '';
+
+            if (response.ok && Array.isArray(response.body)) {
+                wrapper.style.display = 'block';
+                response.body.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${a.name}</strong></td>
+                        <td>${a.email}</td>
+                        <td>${a.batchYear}</td>
+                        <td>${a.degree}</td>
+                        <td>${a.currentCompany || '-'}</td>
+                        <td>${a.currentRole || '-'}</td>
+                        <td>${a.location || '-'}</td>
+                        <td>${a.linkedinURL ? `<a href="${a.linkedinURL}" target="_blank" class="table-link">LinkedIn</a>` : '-'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                wrapper.style.display = 'none';
+            }
+
+            displayResult(card, response);
+        }
+
+        async function handleGetAlumniById(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const id = document.getElementById('alumni-id').value;
+
+            const response = await apiCall(`/alumni/${id}`);
+            displayResult(card, response);
+        }
+
+        async function handleSearchAlumni(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const query = document.getElementById('alumni-query').value;
+
+            const response = await apiCall(`/alumni/search?q=${encodeURIComponent(query)}`);
+            
+            const wrapper = document.getElementById('search-table-wrapper');
+            const tbody = document.querySelector('#search-table tbody');
+            tbody.innerHTML = '';
+
+            if (response.ok && Array.isArray(response.body)) {
+                wrapper.style.display = 'block';
+                response.body.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${a.name}</strong></td>
+                        <td>${a.email}</td>
+                        <td>${a.batchYear}</td>
+                        <td>${a.degree}</td>
+                        <td>${a.currentCompany || '-'}</td>
+                        <td>${a.location || '-'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                wrapper.style.display = 'none';
+            }
+
+            displayResult(card, response);
+        }
+
+        async function handleUpdateProfile(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+
+            const id = document.getElementById('up-id').value;
+            const payload = {
+                name: document.getElementById('up-name').value,
+                email: document.getElementById('up-email').value,
+                phoneNumber: document.getElementById('up-phone').value,
+                batchYear: parseInt(document.getElementById('up-batch').value) || 0,
+                degree: document.getElementById('up-degree').value,
+                currentCompany: document.getElementById('up-company').value,
+                currentRole: document.getElementById('up-role').value,
+                location: document.getElementById('up-location').value,
+                linkedinURL: document.getElementById('up-linkedin').value
+            };
+
+            const response = await apiCall(`/alumni/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            displayResult(card, response);
+        }
+
+
+        // ================= JOBS OPERATIONS =================
+        async function handleGetJobs() {
+            const card = document.getElementById('jobs-cards-container').closest('.action-card');
+            const response = await apiCall('/jobs');
+
+            const container = document.getElementById('jobs-cards-container');
+            container.innerHTML = '';
+
+            if (response.ok && Array.isArray(response.body)) {
+                response.body.forEach(j => {
+                    const deadline = j.applicationDeadline ? new Date(j.applicationDeadline).toLocaleDateString() : 'N/A';
+                    const posted = j.postedDate ? new Date(j.postedDate).toLocaleDateString() : 'N/A';
+                    const activeClass = j.isActive ? 'active' : 'inactive';
+                    const activeText = j.isActive ? 'Active' : 'Inactive';
+
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'job-card';
+                    cardDiv.innerHTML = `
+                        <div class="job-card-header">
+                            <span class="job-title">${j.jobTitle}</span>
+                            <span class="job-badge ${activeClass}">${activeText}</span>
+                        </div>
+                        <div class="job-company">${j.companyName}</div>
+                        <div class="job-detail">📍 ${j.location}</div>
+                        <div class="job-detail">📅 Posted: ${posted}</div>
+                        <div class="job-detail">⚠️ Deadline: ${deadline}</div>
+                        <p style="font-size:0.8rem; margin-top:0.25rem; color:var(--text-secondary); line-clamp:2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                            ${j.jobDescription}
+                        </p>
+                        ${j.applyUrl ? `<a href="${j.applyUrl}" target="_blank" class="job-apply-btn">Apply Now</a>` : ''}
+                    `;
+                    container.appendChild(cardDiv);
+                });
+            }
+
+            displayResult(card, response);
+        }
+
+        function clearJobsCard(button) {
+            document.getElementById('jobs-cards-container').innerHTML = '';
+            const card = button.closest('.action-card');
+            const resultBox = card.querySelector('#jobs-get-result-box');
+            if (resultBox) {
+                resultBox.classList.remove('visible');
+                resultBox.querySelector('.result-body').textContent = '';
+            }
+        }
+
+        async function handleGetJobById(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const id = document.getElementById('job-id').value;
+
+            const response = await apiCall(`/jobs/${id}`);
+            displayResult(card, response);
+        }
+
+        async function handleCreateJob(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+
+            const payload = {
+                JobTitle: document.getElementById('job-title').value,
+                JobDescription: document.getElementById('job-desc').value,
+                CompanyName: document.getElementById('job-company-name').value,
+                Location: document.getElementById('job-location').value,
+                ApplicationDeadline: new Date(document.getElementById('job-deadline').value).toISOString(),
+                ApplyUrl: document.getElementById('job-apply-url').value
+            };
+
+            const response = await apiCall('/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            displayResult(card, response);
+        }
+
+        async function handleUpdateJob(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const id = document.getElementById('upjob-id').value;
+
+            const payload = {
+                JobTitle: document.getElementById('upjob-title').value,
+                JobDescription: document.getElementById('upjob-desc').value,
+                CompanyName: document.getElementById('upjob-company').value,
+                Location: document.getElementById('upjob-location').value,
+                ApplicationDeadline: new Date(document.getElementById('upjob-deadline').value).toISOString(),
+                ApplyUrl: document.getElementById('upjob-url').value
+            };
+
+            const response = await apiCall(`/jobs/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            displayResult(card, response);
+        }
+
+        async function handleDeleteJob(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const id = document.getElementById('delete-job-id').value;
+
+            if (confirm(`Are you sure you want to deactivate / soft delete Job Posting ID: ${id}?`)) {
+                const response = await apiCall(`/jobs/${id}`, {
+                    method: 'DELETE'
+                });
+                displayResult(card, response);
+            }
+        }
+
+
+        // ================= EVENTS OPERATIONS =================
+        async function handleGetEvents() {
+            const card = document.getElementById('events-get-result-box').closest('.action-card');
+            const response = await apiCall('/events');
+
+            const wrapper = document.getElementById('events-table-wrapper');
+            const tbody = document.querySelector('#events-table tbody');
+            tbody.innerHTML = '';
+
+            if (response.ok && Array.isArray(response.body)) {
+                wrapper.style.display = 'block';
+                response.body.forEach(e => {
+                    const date = e.eventDate ? new Date(e.eventDate).toLocaleString() : 'N/A';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${e.id}</strong></td>
+                        <td>${e.eventName}</td>
+                        <td>${e.description}</td>
+                        <td>${date}</td>
+                        <td>${e.location}</td>
+                        <td>${e.userId || '-'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                wrapper.style.display = 'none';
+            }
+
+            displayResult(card, response);
+        }
+
+        function clearEventsCard(button) {
+            document.getElementById('events-table-wrapper').style.display = 'none';
+            const card = button.closest('.action-card');
+            const resultBox = card.querySelector('#events-get-result-box');
+            if (resultBox) {
+                resultBox.classList.remove('visible');
+                resultBox.querySelector('.result-body').textContent = '';
+            }
+        }
+
+        async function handleGetEventById(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const id = document.getElementById('event-id').value;
+
+            const response = await apiCall(`/events/${id}`);
+            displayResult(card, response);
+        }
+
+        async function handleCreateEvent(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+
+            const payload = {
+                EventName: document.getElementById('event-name').value,
+                Description: document.getElementById('event-desc').value,
+                EventDate: new Date(document.getElementById('event-date').value).toISOString(),
+                Location: document.getElementById('event-location').value
+            };
+
+            const response = await apiCall('/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            displayResult(card, response);
+        }
+
+        async function handleUpdateEvent(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const id = document.getElementById('upevent-id').value;
+
+            const payload = {
+                EventName: document.getElementById('upevent-name').value,
+                Description: document.getElementById('upevent-desc').value,
+                EventDate: new Date(document.getElementById('upevent-date').value).toISOString(),
+                Location: document.getElementById('upevent-location').value
+            };
+
+            const response = await apiCall(`/events/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            displayResult(card, response);
+        }
+
+        async function handleDeleteEvent(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const id = document.getElementById('delete-event-id').value;
+
+            if (confirm(`Are you sure you want to delete Event ID: ${id}?`)) {
+                const response = await apiCall(`/events/${id}`, {
+                    method: 'DELETE'
+                });
+                displayResult(card, response);
+            }
+        }
+
+        async function handleRsvpEvent(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const id = document.getElementById('rsvp-event-id').value;
+            const status = document.getElementById('rsvp-status').value;
+
+            const response = await apiCall(`/events/${id}/rsvp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rsvpStatus: status })
+            });
+
+            displayResult(card, response);
+        }
+
+        async function handleGetRsvpStatus(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const id = document.getElementById('rsvp-event-id').value;
+
+            const response = await apiCall(`/events/${id}/rsvp`);
+            displayResult(card, response);
+        }
+
+
+        // ================= DONATIONS OPERATIONS =================
+        async function handleCreateOrder(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const amount = parseFloat(document.getElementById('donate-amount').value);
+
+            const response = await apiCall('/donations/create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: amount })
+            });
+
+            // Always display the response payload (with order ID) in the UI immediately!
+            displayResult(card, response);
+
+            if (!response.ok) {
+                return;
+            }
+
+            const orderId = response.body.orderId;
+            const keyId = response.body.razorpayKey;
+
+            // Only attempt to launch Razorpay if the Key ID is NOT the developer placeholder
+            if (keyId && keyId !== "rzp_test_key_placeholder") {
+                const options = {
+                    "key": keyId,
+                    "amount": amount * 100, // Amount in paise
+                    "currency": "INR",
+                    "name": "Alumni Platform",
+                    "description": "Alumni Donation",
+                    "order_id": orderId,
+                    "handler": async function (checkoutResponse) {
+                        // Send to backend verify endpoint
+                        const verifyResponse = await apiCall('/donations/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                razorpayOrderId: checkoutResponse.razorpay_order_id,
+                                razorpayPaymentId: checkoutResponse.razorpay_payment_id,
+                                razorpaySignature: checkoutResponse.razorpay_signature
+                            })
+                        });
+
+                        displayResult(card, verifyResponse);
+                        if (verifyResponse.ok) {
+                            alert("Payment verified and saved successfully!");
+                            handleGetDonationHistory();
+                        } else {
+                            alert("Verification failed: " + (verifyResponse.body.message || "Unknown error"));
+                        }
+                    },
+                    "prefill": {
+                        "email": currentUserEmail || ""
+                    },
+                    "theme": {
+                        "color": "#3b82f6"
+                    }
+                };
+
+                try {
+                    const rzp = new Razorpay(options);
+                    rzp.open();
+                } catch (err) {
+                    console.warn("Failed to initialize Razorpay checkout script modal", err);
+                }
+            } else {
+                console.log("Using developer placeholder keys. Skipping Razorpay popup.");
+            }
+        }
+
+        async function handleGetDonationHistory() {
+            const card = document.getElementById('donations-get-result-box').closest('.action-card');
+            const response = await apiCall('/donations/my');
+
+            const wrapper = document.getElementById('donations-table-wrapper');
+            const tbody = document.querySelector('#donations-table tbody');
+            tbody.innerHTML = '';
+
+            if (response.ok && Array.isArray(response.body)) {
+                wrapper.style.display = 'block';
+                response.body.forEach(d => {
+                    const date = d.donationDate ? new Date(d.donationDate).toLocaleString() : 'N/A';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${d.id}</strong></td>
+                        <td>₹${parseFloat(d.amount).toFixed(2)}</td>
+                        <td>${date}</td>
+                        <td>${d.razorpayOrderId}</td>
+                        <td>${d.razorpayPaymentId || '-'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                wrapper.style.display = 'none';
+            }
+
+            displayResult(card, response);
+        }
+
+        function clearDonationHistoryCard(button) {
+            document.getElementById('donations-table-wrapper').style.display = 'none';
+            const card = button.closest('.action-card');
+            const resultBox = card.querySelector('#donations-get-result-box');
+            if (resultBox) {
+                resultBox.classList.remove('visible');
+                resultBox.querySelector('.result-body').textContent = '';
+            }
+        }
+
+
+        // ================= NOTIFICATIONS OPERATIONS =================
+        async function handleGetNotifications() {
+            const card = document.getElementById('notifications-get-result-box').closest('.action-card');
+            const response = await apiCall('/notifications');
+
+            const container = document.getElementById('notification-items-container');
+            container.innerHTML = '';
+
+            if (response.ok && Array.isArray(response.body)) {
+                response.body.forEach(n => {
+                    const readClass = n.isRead ? 'read' : 'unread';
+                    const readText = n.isRead ? 'Read' : 'Unread';
+                    const date = n.createdAt ? new Date(n.createdAt).toLocaleString() : 'N/A';
+
+                    const item = document.createElement('div');
+                    item.className = 'notification-item';
+                    item.innerHTML = `
+                        <div class="notification-info">
+                            <span class="notification-title">
+                                ${n.title} 
+                                <span class="type-badge">${n.type}</span>
+                                <span style="font-family:monospace; font-size:0.75rem; color:var(--text-secondary);">[ID: ${n.id}]</span>
+                            </span>
+                            <span class="notification-message">${n.message}</span>
+                            <span class="notification-meta">📅 ${date}</span>
+                        </div>
+                        <div>
+                            <span class="read-badge ${readClass}">${readText}</span>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            }
+
+            displayResult(card, response);
+        }
+
+        async function handleMarkSingleRead() {
+            const card = document.getElementById('notifications-get-result-box').closest('.action-card');
+            const id = document.getElementById('read-notification-id').value;
+
+            if (!id) {
+                alert("Please enter a Notification ID");
+                return;
+            }
+
+            const response = await apiCall(`/notifications/${id}/read`, {
+                method: 'PUT'
+            });
+
+            if (response.ok) {
+                handleGetNotifications(); // refresh feed
+            }
+
+            displayResult(card, response);
+        }
+
+        async function handleMarkAllRead() {
+            const card = document.getElementById('notifications-get-result-box').closest('.action-card');
+            const response = await apiCall('/notifications/read-all', {
+                method: 'PUT'
+            });
+
+            if (response.ok) {
+                handleGetNotifications(); // refresh feed
+            }
+
+            displayResult(card, response);
+        }
+
+        function clearNotificationsCard(button) {
+            document.getElementById('notification-items-container').innerHTML = '';
+            const card = button.closest('.action-card');
+            const resultBox = card.querySelector('#notifications-get-result-box');
+            if (resultBox) {
+                resultBox.classList.remove('visible');
+                resultBox.querySelector('.result-body').textContent = '';
+            }
+        }
+
+
+        // ================= DASHBOARD OPERATIONS =================
+        async function handleGetDashboardStats() {
+            const card = document.getElementById('dashboard-result-box').closest('.action-card');
+            const response = await apiCall('/dashboard/stats');
+
+            const valAlumni = document.getElementById('stat-alumni-count');
+            const valDonations = document.getElementById('stat-donation-amount');
+            const valJobs = document.getElementById('stat-job-count');
+            const valEvents = document.getElementById('stat-event-count');
+            const chartWrapper = document.getElementById('chart-section-wrapper');
+            const chartContainer = document.getElementById('batch-year-chart-container');
+
+            chartContainer.innerHTML = '';
+
+            if (response.ok && response.body) {
+                valAlumni.textContent = response.body.totalAlumniCount;
+                valDonations.textContent = `₹${parseFloat(response.body.totalDonationsAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                valJobs.textContent = response.body.activeJobCount;
+                valEvents.textContent = response.body.upcomingEventsCount;
+
+                // Render Batch Year bar chart
+                const batchData = response.body.alumniByBatchYear || {};
+                const years = Object.keys(batchData);
+                
+                if (years.length > 0) {
+                    chartWrapper.style.display = 'block';
+                    
+                    // Find max count to scale widths
+                    const counts = Object.values(batchData);
+                    const maxCount = Math.max(...counts, 1);
+
+                    years.forEach(year => {
+                        const count = batchData[year];
+                        const pct = (count / maxCount) * 100;
+
+                        const row = document.createElement('div');
+                        row.className = 'chart-row';
+                        row.innerHTML = `
+                            <div class="chart-label">Year ${year}</div>
+                            <div class="chart-bar-container">
+                                <div class="chart-bar" style="width: ${pct}%;"></div>
+                            </div>
+                            <div class="chart-value">${count}</div>
+                        `;
+                        chartContainer.appendChild(row);
+                    });
+                } else {
+                    chartWrapper.style.display = 'none';
+                }
+            } else {
+                valAlumni.textContent = '-';
+                valDonations.textContent = '-';
+                valJobs.textContent = '-';
+                valEvents.textContent = '-';
+                chartWrapper.style.display = 'none';
+            }
+
+            displayResult(card, response);
+        }
+
+        function clearDashboard() {
+            document.getElementById('stat-alumni-count').textContent = '-';
+            document.getElementById('stat-donation-amount').textContent = '-';
+            document.getElementById('stat-job-count').textContent = '-';
+            document.getElementById('stat-event-count').textContent = '-';
+            document.getElementById('batch-year-chart-container').innerHTML = '';
+            document.getElementById('chart-section-wrapper').style.display = 'none';
+
+            const card = document.getElementById('dashboard-result-box').closest('.action-card');
+            const resultBox = card.querySelector('#dashboard-result-box');
+            if (resultBox) {
+                resultBox.classList.remove('visible');
+                resultBox.querySelector('.result-body').textContent = '';
+            }
+        }
+
+
+        // ================= USERS OPERATIONS =================
+        async function handleGetUsers() {
+            const card = document.getElementById('users-get-result-box').closest('.action-card');
+            const response = await apiCall('/users');
+
+            const wrapper = document.getElementById('users-table-wrapper');
+            const tbody = document.querySelector('#users-table tbody');
+            tbody.innerHTML = '';
+
+            if (response.ok && Array.isArray(response.body)) {
+                wrapper.style.display = 'block';
+                response.body.forEach(u => {
+                    const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${u.id}</strong></td>
+                        <td>${u.email}</td>
+                        <td><span style="color:var(--accent); font-weight:600;">${u.roleName}</span> (ID: ${u.roleId})</td>
+                        <td>${u.name || '-'}</td>
+                        <td>${date}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                wrapper.style.display = 'none';
+            }
+
+            displayResult(card, response);
+        }
+
+        function clearUsersCard(button) {
+            document.getElementById('users-table-wrapper').style.display = 'none';
+            const card = button.closest('.action-card');
+            const resultBox = card.querySelector('#users-get-result-box');
+            if (resultBox) {
+                resultBox.classList.remove('visible');
+                resultBox.querySelector('.result-body').textContent = '';
+            }
+        }
+
+        async function handleGetUserByEmail(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const email = document.getElementById('user-email').value;
+
+            const response = await apiCall(`/users/${encodeURIComponent(email)}`);
+            displayResult(card, response);
+        }
+
+        async function handleUpdateRole(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const email = document.getElementById('role-user-email').value;
+            const roleId = parseInt(document.getElementById('role-dropdown').value);
+
+            const response = await apiCall(`/users/${encodeURIComponent(email)}/role`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roleId: roleId })
+            });
+
+            displayResult(card, response);
+        }
+
+        async function handleDeleteUser(event) {
+            event.preventDefault();
+            const card = event.target.closest('.action-card');
+            const email = document.getElementById('delete-user-email').value;
+
+            if (confirm(`Are you sure you want to permanently delete User: ${email} and their profile? This action is irreversible.`)) {
+                const response = await apiCall(`/users/${encodeURIComponent(email)}`, {
+                    method: 'DELETE'
+                });
+                displayResult(card, response);
+            }
+        }
+    </script>
+</body>
+</html>

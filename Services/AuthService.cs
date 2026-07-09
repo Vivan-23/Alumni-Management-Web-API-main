@@ -15,28 +15,28 @@ namespace AlumniManagementApi.Services
     {
         private readonly AppDbContext _context;
         private readonly JwtSettings _jwtSettings;
-        private readonly PasswordHasher<User> _passwordHasher;
+        private readonly IAuditService _auditService;
 
-        public AuthService(AppDbContext context, IOptions<JwtSettings> jwtSettings)
+        public AuthService(AppDbContext context, IOptions<JwtSettings> jwtSettings, IAuditService auditService)
         {
             _context = context;
             _jwtSettings = jwtSettings.Value;
-            _passwordHasher = new PasswordHasher<User>();
+            _auditService = auditService;
         }
 
-        public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
+        public async Task<AuthResponse?> RegisterAsync(RegisterRequest request, string? ipAddress = null)
         {
             // Check if user already exists
             if (await _context.Users.AnyAsync(u => u.Email == request.Email))
             {
-                return null;
+                throw new InvalidOperationException("Email is already registered.");
             }
 
             // Verify Role exists (Student role is 3)
             var role = await _context.Roles.FindAsync(3);
             if (role == null)
             {
-                return null;
+                throw new InvalidOperationException("Default role 'Student' not found in database.");
             }
 
             var user = new User
@@ -47,7 +47,7 @@ namespace AlumniManagementApi.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
             _context.Users.Add(user);
 
@@ -67,6 +67,9 @@ namespace AlumniManagementApi.Services
             _context.AlumniProfiles.Add(profile);
 
             await _context.SaveChangesAsync();
+
+            // Log the mutating register action
+            await _auditService.LogAsync("User.Register", "User", user.Id.ToString(), user.Id, ipAddress, $"User registered with email: {user.Email}");
 
             var token = GenerateJwtToken(user, role.RoleName);
 
@@ -90,8 +93,18 @@ namespace AlumniManagementApi.Services
                 return null;
             }
 
-            var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-            if (verificationResult == PasswordVerificationResult.Failed)
+            bool verificationResult = false;
+            try
+            {
+                verificationResult = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+            }
+            catch (BCrypt.Net.SaltParseException)
+            {
+                // Fallback for legacy or plain-text passwords seeded in the development database
+                verificationResult = (request.Password == user.PasswordHash);
+            }
+
+            if (!verificationResult)
             {
                 return null;
             }
